@@ -1,6 +1,7 @@
 package kvstore
 
 import (
+	"errors"
 	"fmt"
 	"os"
 )
@@ -16,21 +17,51 @@ type dal struct {
 	file     *os.File
 	pageSize int
 
+	*metadata
 	*freeList
 }
 
-func NewDal(path string, pageSize int) (*dal, error) {
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
-	if err != nil {
+func NewDal(path string) (*dal, error) {
+	d := &dal{
+		metadata: newEmptyMetadata(),
+		pageSize: os.Getpagesize(),
+	}
+	if _, err := os.Stat(path); err == nil {
+		d.file, err = os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
+		if err != nil {
+			return nil, err
+		}
+
+		d.metadata, err = d.readMetadata()
+		if err != nil {
+			return nil, err
+		}
+
+		d.freeList, err = d.readFreeList()
+		if err != nil {
+			return nil, err
+		}
+	} else if errors.Is(err, os.ErrNotExist) {
+		d.file, err = os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
+		if err != nil {
+			return nil, err
+		}
+
+		d.freeList = newFreeList()
+		d.freeListPage = d.GetNextPage()
+		_, err := d.WriteFreeList()
+		if err != nil {
+			return nil, err
+		}
+		_, err = d.writeMetadata(d.metadata)
+		if err != nil {
+			return nil, err
+		}
+	} else {
 		return nil, err
 	}
-	dal := &dal{
-		file:     f,
-		pageSize: pageSize,
-		freeList: newFreeList(),
-	}
 
-	return dal, nil
+	return d, nil
 }
 
 func (d *dal) Close() error {
@@ -46,7 +77,7 @@ func (d *dal) Close() error {
 
 func (d *dal) AllocateEmptyPage() *page {
 	return &page{
-		Data: make([]byte, d.pageSize),
+		Data: make([]byte, d.pageSize, d.pageSize),
 	}
 }
 
@@ -92,4 +123,29 @@ func (d *dal) readMetadata() (*metadata, error) {
 	m.deserialize(p.Data)
 
 	return m, nil
+}
+
+func (d *dal) WriteFreeList() (*page, error) {
+	p := d.AllocateEmptyPage()
+	p.Num = d.freeListPage
+	d.freeList.serialize(p.Data)
+
+	err := d.WritePage(p)
+	if err != nil {
+		return nil, err
+	}
+	d.freeListPage = p.Num
+
+	return p, nil
+}
+
+func (d *dal) readFreeList() (*freeList, error) {
+	p, err := d.ReadPage(d.freeListPage)
+	if err != nil {
+		return nil, err
+	}
+	f := newFreeList()
+	f.deserialize(p.Data)
+
+	return f, nil
 }
