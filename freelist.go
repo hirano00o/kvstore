@@ -14,7 +14,7 @@ func newFreeList() *freeList {
 	}
 }
 
-func (f *freeList) getNextPage() pgnum {
+func (f *freeList) GetNextPage() pgnum {
 	if len(f.releasedPages) != 0 {
 		pageID := f.releasedPages[len(f.releasedPages)-1]
 		f.releasedPages = f.releasedPages[:len(f.releasedPages)-1]
@@ -24,6 +24,6 @@ func (f *freeList) getNextPage() pgnum {
 	return f.maxPage
 }
 
-func (f *freeList) releasePage(page pgnum) {
+func (f *freeList) ReleasePage(page pgnum) {
 	f.releasedPages = append(f.releasedPages, page)
 }

@@ -8,8 +8,8 @@ import (
 type pgnum uint64
 
 type page struct {
-	num  pgnum
-	data []byte
+	Num  pgnum
+	Data []byte
 }
 
 type dal struct {
@@ -19,7 +19,7 @@ type dal struct {
 	*freeList
 }
 
-func newDal(path string, pageSize int) (*dal, error) {
+func NewDal(path string, pageSize int) (*dal, error) {
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		return nil, err
@@ -33,7 +33,7 @@ func newDal(path string, pageSize int) (*dal, error) {
 	return dal, nil
 }
 
-func (d *dal) close() error {
+func (d *dal) Close() error {
 	if d.file != nil {
 		err := d.file.Close()
 		if err != nil {
@@ -44,18 +44,18 @@ func (d *dal) close() error {
 	return nil
 }
 
-func (d *dal) allocateEmptyPage() *page {
+func (d *dal) AllocateEmptyPage() *page {
 	return &page{
-		data: make([]byte, d.pageSize),
+		Data: make([]byte, d.pageSize),
 	}
 }
 
-func (d *dal) readPage(pageNum pgnum) (*page, error) {
-	p := d.allocateEmptyPage()
+func (d *dal) ReadPage(pageNum pgnum) (*page, error) {
+	p := d.AllocateEmptyPage()
 
 	offset := int(pageNum) * d.pageSize
 
-	_, err := d.file.ReadAt(p.data, int64(offset))
+	_, err := d.file.ReadAt(p.Data, int64(offset))
 	if err != nil {
 		return nil, err
 	}
@@ -63,8 +63,8 @@ func (d *dal) readPage(pageNum pgnum) (*page, error) {
 	return p, err
 }
 
-func (d *dal) writePage(p *page) error {
-	offset := int64(p.num) * int64(d.pageSize)
-	_, err := d.file.WriteAt(p.data, offset)
+func (d *dal) WritePage(p *page) error {
+	offset := int64(p.Num) * int64(d.pageSize)
+	_, err := d.file.WriteAt(p.Data, offset)
 	return err
 }
