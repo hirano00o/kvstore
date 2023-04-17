@@ -68,3 +68,28 @@ func (d *dal) WritePage(p *page) error {
 	_, err := d.file.WriteAt(p.Data, offset)
 	return err
 }
+
+func (d *dal) writeMetadata(m *metadata) (*page, error) {
+	p := d.AllocateEmptyPage()
+	p.Num = metadataPageNum
+	m.serialize(p.Data)
+
+	err := d.WritePage(p)
+	if err != nil {
+		return nil, err
+	}
+
+	return p, err
+}
+
+func (d *dal) readMetadata() (*metadata, error) {
+	p, err := d.ReadPage(metadataPageNum)
+	if err != nil {
+		return nil, err
+	}
+
+	m := newEmptyMetadata()
+	m.deserialize(p.Data)
+
+	return m, nil
+}
