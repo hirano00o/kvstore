@@ -149,3 +149,36 @@ func (d *dal) readFreeList() (*freeList, error) {
 
 	return f, nil
 }
+
+func (d *dal) getNode(pageNum pgnum) (*Node, error) {
+	p, err := d.ReadPage(pageNum)
+	if err != nil {
+		return nil, err
+	}
+	node := NewEmptyNode()
+	node.deserialize(p.Data)
+	node.pageNum = pageNum
+	return node, nil
+}
+
+func (d *dal) writeNode(n *Node) (*Node, error) {
+	p := d.AllocateEmptyPage()
+	if n.pageNum == 0 {
+		p.Num = d.GetNextPage()
+		n.pageNum = p.Num
+	} else {
+		p.Num = n.pageNum
+	}
+
+	p.Data = n.serialize(p.Data)
+
+	err := d.WritePage(p)
+	if err != nil {
+		return nil, err
+	}
+	return n, nil
+}
+
+func (d *dal) deleteNode(pageNum pgnum) {
+	d.ReleasePage(pageNum)
+}
